@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Resume Parser AI</title>
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background-color: #f4f7f6; color: #333; display: flex; justify-content: center; align-items: flex-start; min-height: 100vh; margin: 0; padding-top: 2rem; }
+        .container { background: white; padding: 2rem 3rem; border-radius: 12px; box-shadow: 0 8px 30px rgba(0,0,0,0.1); width: 100%; max-width: 900px; }
+        h1 { text-align: center; color: #1a2533; margin-bottom: 1.5rem; }
+        form { display: flex; flex-direction: column; gap: 1rem; }
+        input[type="file"] { border: 2px dashed #ccc; padding: 1.5rem; border-radius: 8px; cursor: pointer; transition: border-color 0.3s, background-color 0.3s; }
+        input[type="file"]:hover { border-color: #007bff; background-color: #f0f8ff; }
+        button { background-color: #007bff; color: white; border: none; padding: 0.8rem 1.5rem; border-radius: 8px; font-size: 1rem; cursor: pointer; transition: background-color 0.3s; align-self: center; }
+        button:disabled { background-color: #aaa; cursor: not-allowed; }
+        #status-message { text-align: center; font-weight: bold; color: #555; display: none; margin-top: 1rem; height: 20px; }
+        #result-table { margin-top: 2rem; border-collapse: collapse; width: 100%; display: none; }
+        #result-table th, #result-table td { border: 1px solid #ddd; padding: 12px; text-align: left; }
+        #result-table th { background-color: #007bff; color: white; }
+        #result-table tr:nth-child(even) { background-color: #f2f2f2; }
+        #result-table a { color: #007bff; text-decoration: none; }
+        #result-table a:hover { text-decoration: underline; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Resume Parser AI</h1>
+        <form id="upload-form">
+            <label for="resume-file">Upload a Resume PDF to extract its key information:</label>
+            <input type="file" id="resume-file" name="resume" accept=".pdf" required>
+            <button type="submit">Parse Resume</button>
+        </form>
+
+        <div id="status-message"></div>
+
+        <table id="result-table">
+            <thead>
+                <tr>
+                    <th>Category</th>
+                    <th>Name of Instance</th>
+                    <th>Dates of Instance</th>
+                    <th>Reference/Link</th>
+                </tr>
+            </thead>
+            <tbody id="table-body">
+                <!-- Rows will be dynamically inserted here -->
+            </tbody>
+        </table>
+    </div>
+
+    <script>
+        const form = document.getElementById('upload-form');
+        const fileInput = document.getElementById('resume-file');
+        const statusMessage = document.getElementById('status-message');
+        const resultTable = document.getElementById('result-table');
+        const tableBody = document.getElementById('table-body');
+        const submitButton = form.querySelector('button');
+
+        form.addEventListener('submit', async (event) => {
+            event.preventDefault();
+
+            statusMessage.textContent = 'Processing... Please wait.';
+            statusMessage.style.color = '#555';
+            statusMessage.style.display = 'block';
+            resultTable.style.display = 'none';
+            tableBody.innerHTML = '';
+            submitButton.disabled = true;
+
+            const formData = new FormData();
+            formData.append('resume', fileInput.files[0]);
+
+            try {
+                const response = await fetch('/parse-resume', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const result = await response.json();
+
+                if (!response.ok) {
+                    throw new Error(result.message || 'An unknown error occurred.');
+                }
+                
+                populateTable(result.data);
+                statusMessage.style.display = 'none';
+                resultTable.style.display = 'table';
+
+            } catch (error) {
+                statusMessage.textContent = 'Error: ' + error.message;
+                statusMessage.style.color = 'red';
+            } finally {
+                submitButton.disabled = false;
+            }
+        });
+
+        function populateTable(data) {
+            if (!data || data.length === 0) {
+                statusMessage.textContent = 'Could not extract any information from the resume.';
+                statusMessage.style.display = 'block';
+                return;
+            }
+
+            data.forEach(item => {
+                const row = document.createElement('tr');
+
+                const categoryCell = document.createElement('td');
+                categoryCell.textContent = item.category || '?';
+                row.appendChild(categoryCell);
+
+                const nameCell = document.createElement('td');
+                nameCell.textContent = item.name || '?';
+                row.appendChild(nameCell);
+
+                const datesCell = document.createElement('td');
+                datesCell.textContent = item.dates || '?';
+                row.appendChild(datesCell);
+
+                const referenceCell = document.createElement('td');
+                if (item.reference && item.reference.startsWith('http')) {
+                    const link = document.createElement('a');
+                    link.href = item.reference;
+                    link.textContent = 'Link';
+                    link.target = '_blank';
+                    referenceCell.appendChild(link);
+                } else {
+                    referenceCell.textContent = item.reference || '?';
+                }
+                row.appendChild(referenceCell);
+
+                tableBody.appendChild(row);
+            });
+        }
+    </script>
+</body>
+</html>
